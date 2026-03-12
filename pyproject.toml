@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "amplifier-lib"
+version = "0.1.0"
+description = "Amplifier SDK library - core primitives for building Amplifier applications"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+dependencies = [
+    "pyyaml>=6.0",
+    "amplifier-core>=1.1.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/amplifier_lib"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=6.1.1",
+    "pyright>=1.1.407",
+    "ruff>=0.11.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
