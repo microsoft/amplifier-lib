@@ -786,6 +786,7 @@ class PreparedBundle:
             ContentDeduplicator,
             format_context_block,
             load_mentions,
+            load_mentions_from_file,
         )
 
         captured_bundle = bundle
@@ -805,8 +806,7 @@ class PreparedBundle:
 
             for ctx_name, ctx_path in captured_bundle.context.items():
                 if ctx_path.exists():
-                    content = ctx_path.read_text(encoding="utf-8")
-                    deduplicator.add_file(ctx_path, content)
+                    await load_mentions_from_file(ctx_path, resolver, deduplicator)
                     mention_to_path[ctx_name] = ctx_path
 
             mention_results = await load_mentions(

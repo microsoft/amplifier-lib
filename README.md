@@ -172,3 +172,20 @@ trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
+
+### Relative instruction references
+
+Nested explicit `@./file.md` and `@../file.md` mentions resolve beside the file
+that contains them. Bare `@AGENTS.md` stays anchored to the resolver's workspace,
+and namespace/home/absolute references retain their roots. Missing files remain
+optional. Content is deduplicated, while distinct files with identical content
+still resolve their own relative references. Canonical file paths stop cycles.
+
+Custom mention resolvers can implement the optional
+`resolve_relative(mention, relative_to)` method to support per-file resolution
+without mutable shared state. Resolvers implementing only `resolve(mention)`
+continue to work with their existing semantics.
+
+Bundle-declared context files use the same recursive loader. The path-based
+`load_mentions_from_file` entry point preserves filenames containing spaces.
+Raw file-tool results and attachments remain literal content.
