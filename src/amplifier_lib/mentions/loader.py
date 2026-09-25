@@ -9,7 +9,7 @@ from amplifier_lib._utils import _read_with_retry
 from .deduplicator import ContentDeduplicator
 from .models import MentionResult
 from .parser import parse_mentions
-from .protocol import MentionResolverProtocol
+from .protocol import MentionResolverProtocol, RelativeMentionResolverProtocol
 from .utils import format_directory_listing
 
 
@@ -91,7 +91,9 @@ async def load_mentions(
         text: Text containing @mentions.
         resolver: Resolver to convert mentions to paths.
         deduplicator: Optional deduplicator for content. If None, creates one.
-        relative_to: Base path for relative mentions (defaults to cwd).
+        relative_to: Base path for top-level local mentions (defaults to resolver).
+            Nested explicit ./ and ../ paths use the referring file directory.
+            Legacy resolvers without resolve_relative retain their behavior.
         max_depth: Maximum recursion depth to prevent infinite loops (default 3).
 
     Returns:
@@ -101,6 +103,7 @@ async def load_mentions(
         deduplicator = ContentDeduplicator()
 
     results: list[MentionResult] = []
+    visited_paths: set[Path] = set()
     mentions = parse_mentions(text)
 
     for mention in mentions:
@@ -111,6 +114,7 @@ async def load_mentions(
             relative_to=relative_to,
             max_depth=max_depth,
             current_depth=0,
+            visited_paths=visited_paths,
         )
         results.append(result)
 
@@ -124,10 +128,18 @@ async def _resolve_mention(
     relative_to: Path | None,
     max_depth: int,
     current_depth: int,
+    visited_paths: set[Path],
 ) -> MentionResult:
     """Resolve a single mention and recursively load its mentions."""
     # Resolve mention to path
-    path = resolver.resolve(mention)
+    if (
+        relative_to is not None
+        and (current_depth == 0 or mention.startswith(("@./", "@../")))
+        and isinstance(resolver, RelativeMentionResolverProtocol)
+    ):
+        path = resolver.resolve_relative(mention, relative_to)
+    else:
+        path = resolver.resolve(mention)
     if path is None:
         return MentionResult(
             mention=mention,
@@ -158,6 +170,12 @@ async def _resolve_mention(
                 is_directory=True,
             )
 
+    # Distinct files with identical content may reference different siblings.
+    canonical_path = path.resolve()
+    if canonical_path in visited_paths:
+        return MentionResult(mention=mention, resolved_path=path, content=None, error=None)
+    visited_paths.add(canonical_path)
+
     # Read file
     try:
         content = await _read_with_retry(path)
@@ -170,13 +188,7 @@ async def _resolve_mention(
         )
 
     # Check for duplicate content
-    if not deduplicator.add_file(path, content):
-        return MentionResult(
-            mention=mention,
-            resolved_path=path,
-            content=None,  # Already seen, don't include again
-            error=None,
-        )
+    new_content = deduplicator.add_file(path, content)
 
     # Recursively load mentions from this file (if not at max depth)
     if current_depth < max_depth:
@@ -189,11 +201,12 @@ async def _resolve_mention(
                 relative_to=path.parent,
                 max_depth=max_depth,
                 current_depth=current_depth + 1,
+                visited_paths=visited_paths,
             )
 
     return MentionResult(
         mention=mention,
         resolved_path=path,
-        content=content,
+        content=content if new_content else None,
         error=None,
     )
