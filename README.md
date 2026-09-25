@@ -185,3 +185,7 @@ Custom mention resolvers can implement the optional
 `resolve_relative(mention, relative_to)` method to support per-file resolution
 without mutable shared state. Resolvers implementing only `resolve(mention)`
 continue to work with their existing semantics.
+
+Bundle-declared context files use the same recursive loader. The path-based
+`load_mentions_from_file` entry point preserves filenames containing spaces.
+Raw file-tool results and attachments remain literal content.

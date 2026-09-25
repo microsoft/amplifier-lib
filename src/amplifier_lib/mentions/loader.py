@@ -121,6 +121,29 @@ async def load_mentions(
     return results
 
 
+async def load_mentions_from_file(
+    path: Path,
+    resolver: MentionResolverProtocol,
+    deduplicator: ContentDeduplicator | None = None,
+    max_depth: int = 3,
+) -> MentionResult:
+    """Load a declared context file and its nested mentions using the same rules.
+
+    Taking a Path avoids reparsing a known filename as mention syntax (including
+    spaces or Windows drive letters). Explicit relative references use this
+    file's directory; bare references retain the resolver's workspace root.
+    """
+    return await _load_file(
+        mention=str(path),
+        path=path,
+        resolver=resolver,
+        deduplicator=deduplicator if deduplicator is not None else ContentDeduplicator(),
+        max_depth=max_depth,
+        current_depth=0,
+        visited_paths=set(),
+    )
+
+
 async def _resolve_mention(
     mention: str,
     resolver: MentionResolverProtocol,
@@ -148,6 +171,21 @@ async def _resolve_mention(
             error=None,  # Opportunistic - no error for not found
         )
 
+    return await _load_file(
+        mention, path, resolver, deduplicator, max_depth, current_depth, visited_paths
+    )
+
+
+async def _load_file(
+    mention: str,
+    path: Path,
+    resolver: MentionResolverProtocol,
+    deduplicator: ContentDeduplicator,
+    max_depth: int,
+    current_depth: int,
+    visited_paths: set[Path],
+) -> MentionResult:
+    """Shared read/recursion path for resolved mentions and declared context."""
     # Handle directories: generate listing as content
     if path.is_dir():
         try:
