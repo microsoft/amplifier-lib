@@ -68,7 +68,7 @@ async def test_explicit_base_and_nested_namespace_home_absolute_paths(tmp_path, 
         Path,
         "expanduser",
         lambda self: (
-            home / str(self)[2:] if str(self).startswith("~/") else original_expanduser(self)
+            home.joinpath(*self.parts[1:]) if self.parts and self.parts[0] == "~" else original_expanduser(self)
         ),
     )
     write(home / "rules.md", "HOME RULE")
@@ -77,7 +77,7 @@ async def test_explicit_base_and_nested_namespace_home_absolute_paths(tmp_path, 
     write(tmp_path / "bundle/child.md", "BUNDLE CHILD")
     write(
         tmp_path / "workspace/AGENTS.md",
-        f"@~/rules.md @{absolute} @bundle:rules.md @missing:rules.md @missing.md",
+        f"@~/rules.md @{absolute.as_posix()} @bundle:rules.md @missing:rules.md @missing.md",
     )
     bundle = Bundle(name="bundle", base_path=tmp_path / "bundle")
     resolver = BaseMentionResolver(bundles={"bundle": bundle}, base_path=tmp_path / "wrong")
@@ -158,7 +158,7 @@ async def test_tasks_rules_refresh_in_real_prompt_factory(tmp_path, monkeypatch,
         Path,
         "expanduser",
         lambda self: (
-            home / str(self)[2:] if str(self).startswith("~/") else original_expanduser(self)
+            home.joinpath(*self.parts[1:]) if self.parts and self.parts[0] == "~" else original_expanduser(self)
         ),
     )
     for root, label in (
